@@ -27,6 +27,8 @@ public class Qn3RelativeStrengthIndex {
             JSONArray jsonarray = (JSONArray) parser.parse(line);
             return jsonarray.iterator();
         });
+        
+        jsonElements.print();
 
         JavaPairDStream<String, Tuple2<Double, Double>> stockdata = jsonElements.mapToPair(line -> {
             String stockname = line.get("symbol").toString();
@@ -62,18 +64,18 @@ public class Qn3RelativeStrengthIndex {
 
                 counter += 1;
                 
-                if(counter <= 10){
+                if(counter >= 1){
                 totgain += tuple._1();
                 totloss += tuple._2();
                 }
 
-                if (counter >= 10) {
+                if (counter >= 1) {
                     if (avggain == 0.0 && avgloss == 0.0) {
-                        avggain = totgain / 10;
-                        avgloss = totloss / 10;
+                        avggain = totgain / counter;
+                        avgloss = totloss / counter;
                     } else {
-                        avggain = ((avggain * 9) + tuple._1()) / 10;
-                        avgloss = ((avgloss * 9) + tuple._2()) / 10;
+                        avggain = ((avggain * (counter - 1)) + tuple._1()) / counter;
+                        avgloss = ((avgloss * (counter - 1)) + tuple._2()) / counter;
                     }
 
                     if (avggain == 0.0) {
