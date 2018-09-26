@@ -20,7 +20,7 @@ public class Qn3RelativeStrengthIndex {
         jssc.checkpoint("checkpoint_dir");
         Logger.getRootLogger().setLevel(Level.ERROR);
 
-        JavaDStream<String> lines = jssc.textFileStream("C:\\Users\\Ajay\\Documents\\Upgrad\\Project1\\TestStockFile");
+        JavaDStream<String> lines = jssc.textFileStream(args[0]);
 
         JavaDStream<JSONObject> jsonElements = lines.flatMap(line -> {
             JSONParser parser = new JSONParser();
@@ -47,35 +47,54 @@ public class Qn3RelativeStrengthIndex {
 
             return new Tuple2<>(stockname, new Tuple2<>(gain, loss));
         });
-        stockdata.print();
+        //stockdata.print();
 
-        JavaPairDStream<String, Double[]> stockavgstats = stockdata.updateStateByKey((values, state) -> {
-            Double[] prevstate = state.or(new Double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-
-            double counter = prevstate[0];
-            double totgain = prevstate[1];
-            double totloss = prevstate[2];
-            double avggain = prevstate[3];
-            double avgloss = prevstate[4];
-            double rs = prevstate[5];
-            double rsi = prevstate[6];
+        JavaPairDStream<String, StateObject> stockavgstats = stockdata.updateStateByKey((values, state) -> {
+            //Double[] prevstate = state.or(new Double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+        	
+        	
+//            double counter = prevstate[0];
+//            double totgain = prevstate[1];
+//            double totloss = prevstate[2];
+//            double avggain = prevstate[3];
+//            double avgloss = prevstate[4];
+//            double rs = prevstate[5];
+//            double rsi = prevstate[6];
+        	
+        	StateObject prevstate = state.or(new StateObject());
+        	
+        	int counter = prevstate.counter;
+        	Double[] totgain = prevstate.totgain;
+        	Double[] totloss = prevstate.totloss;
+        	double avggain = prevstate.avggain;
+        	double avgloss = prevstate.avgloss;
+        	double tempavggain = 0;
+        	double tempavgloss = 0;
+        	double rs = prevstate.rs;
+        	double rsi = prevstate.rsi;
+        	
 
             for (Tuple2<Double, Double> tuple : values) {
 
                 counter += 1;
-                
-                if(counter >= 1){
-                totgain += tuple._1();
-                totloss += tuple._2();
-                }
 
-                if (counter >= 1) {
+                if(counter >= 1){
+                totgain[(counter - 1) % 14] = tuple._1();
+                totloss[(counter - 1) % 14] = tuple._2();
+                }
+                tempavggain = 
+
+                if (counter == 1) {
                     if (avggain == 0.0 && avgloss == 0.0) {
-                        avggain = totgain / counter;
-                        avgloss = totloss / counter;
-                    } else {
+                        avggain = totgain[0] / counter;
+                        avgloss = totloss[0] / counter;
+                    } else if(counter > 1 && counter <= 14) {
                         avggain = ((avggain * (counter - 1)) + tuple._1()) / counter;
                         avgloss = ((avgloss * (counter - 1)) + tuple._2()) / counter;
+                    }
+                    else {
+                    	avggain = ((avggain * 13) + tuple._1()) / 14;
+                        avgloss = ((avgloss * 13) + tuple._2()) / 14;
                     }
 
                     if (avggain == 0.0) {
@@ -90,12 +109,22 @@ public class Qn3RelativeStrengthIndex {
 
             }
             System.out.println(counter + "|" + totgain + "|" + totloss + "|" + avggain + "|" + avgloss);
-            return Optional.of(new Double[]{counter, totgain, totloss, avggain, avgloss, rs, rsi});
+            //return Optional.of(new Double[]{counter, totgain, totloss, avggain, avgloss, rs, rsi});
+            return Optional.of(new StateObject(
+            {
+            	counter = counter, 
+            	totgain = totgain, 
+            	totloss = totloss, 
+            	avggain = avggain,
+            	avgloss = avgloss,
+            	rs = rs,
+            	rsi = rsi
+            }));
         });
 
         JavaPairDStream<String, Double> stocksrsi = stockavgstats.mapValues(x -> x[6]);
 
-        stocksrsi.window(Durations.minutes(10), Durations.minutes(5)).dstream().saveAsTextFiles("Qn3", null);
+        stocksrsi.window(Durations.minutes(10), Durations.minutes(5)).dstream().saveAsTextFiles(args[1], null);
 
         jssc.start();
         jssc.awaitTermination();
