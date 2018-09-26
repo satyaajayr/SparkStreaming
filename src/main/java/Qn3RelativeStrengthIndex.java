@@ -68,8 +68,7 @@ public class Qn3RelativeStrengthIndex {
         	Double[] totloss = prevstate.totloss;
         	double avggain = prevstate.avggain;
         	double avgloss = prevstate.avgloss;
-        	double tempavggain = 0;
-        	double tempavgloss = 0;
+        	
         	double rs = prevstate.rs;
         	double rsi = prevstate.rsi;
         	
@@ -77,12 +76,20 @@ public class Qn3RelativeStrengthIndex {
             for (Tuple2<Double, Double> tuple : values) {
 
                 counter += 1;
+                double tempavggain = 0;
+            	double tempavgloss = 0;
 
                 if(counter >= 1){
                 totgain[(counter - 1) % 14] = tuple._1();
                 totloss[(counter - 1) % 14] = tuple._2();
                 }
-                tempavggain = 
+                
+                for(int j = 0; j < 14; j++) {
+                	tempavggain += totgain[j];
+                	tempavgloss += totloss[j];
+                }
+                tempavggain -= totgain[(counter) % 14];
+                tempavgloss -= totloss[(counter) % 14];
 
                 if (counter == 1) {
                     if (avggain == 0.0 && avgloss == 0.0) {
@@ -93,8 +100,8 @@ public class Qn3RelativeStrengthIndex {
                         avgloss = ((avgloss * (counter - 1)) + tuple._2()) / counter;
                     }
                     else {
-                    	avggain = ((avggain * 13) + tuple._1()) / 14;
-                        avgloss = ((avgloss * 13) + tuple._2()) / 14;
+                    	avggain = ((tempavggain * 13) + tuple._1()) / 14;
+                        avgloss = ((tempavgloss * 13) + tuple._2()) / 14;
                     }
 
                     if (avggain == 0.0) {
@@ -108,10 +115,9 @@ public class Qn3RelativeStrengthIndex {
                 }
 
             }
-            System.out.println(counter + "|" + totgain + "|" + totloss + "|" + avggain + "|" + avgloss);
+            System.out.println(counter + "|" + rs + "|" + rsi + "|" + avggain + "|" + avgloss);
             //return Optional.of(new Double[]{counter, totgain, totloss, avggain, avgloss, rs, rsi});
             return Optional.of(new StateObject(
-            {
             	counter = counter, 
             	totgain = totgain, 
             	totloss = totloss, 
@@ -119,10 +125,10 @@ public class Qn3RelativeStrengthIndex {
             	avgloss = avgloss,
             	rs = rs,
             	rsi = rsi
-            }));
+            ));
         });
 
-        JavaPairDStream<String, Double> stocksrsi = stockavgstats.mapValues(x -> x[6]);
+        JavaPairDStream<String, Double> stocksrsi = stockavgstats.mapValues(x -> x.rsi);
 
         stocksrsi.window(Durations.minutes(10), Durations.minutes(5)).dstream().saveAsTextFiles(args[1], null);
 
