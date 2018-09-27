@@ -2,8 +2,8 @@
 public class StateObject {
 
 	int counter;
-	Double[] totgain = new Double[14] ;
-	Double[] totloss = new Double[14] ;
+	Double[] totgain;
+	Double[] totloss;
 	double avggain;
 	double avgloss;
 	double rs;
